@@ -74,6 +74,28 @@ class SongsService {
       throw new NotFoundError('Gagal menghapus song, Id tidak ditemukan');
     }
   }
+
+  async getSongsInPlaylist(playlistId) {
+    const query = {
+      text: 'SELECT songs.id, songs.title, songs.performer FROM songs LEFT JOIN playlist_songs ON playlist_songs.song_id = songs.id WHERE playlist_songs.playlist_id = $1',
+      values: [playlistId],
+    };
+
+    const songs = await this._pool.query(query);
+    return songs.rows;
+  }
+
+  async verifySongExists(id) {
+    const query = {
+      text: 'SELECT * FROM songs WHERE id = $1',
+      values: [id],
+    };
+
+    const result = await this._pool.query(query);
+    if (!result.rows.length) {
+      throw new NotFoundError('Song tidak ditemuakn');
+    }
+  }
 }
 
 module.exports = SongsService;

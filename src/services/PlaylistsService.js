@@ -3,10 +3,12 @@ const { Pool } = require('pg');
 const AuthorizationError = require('../exception/AuthorizationError');
 const InvariantError = require('../exception/InvariantError');
 const NotFoundError = require('../exception/NotFoundError');
+const mapPlaylistDBToModel = require('../utils');
 
 class PlaylistsService {
-  constructor() {
+  constructor(songsService) {
     this._pool = new Pool();
+    this._songsService = songsService;
   }
 
   async addPlaylist(name, owner) {
@@ -31,12 +33,12 @@ class PlaylistsService {
     };
 
     const result = await this._pool.query(query);
-    return result.rows;
+    return result.rows.map(mapPlaylistDBToModel);
   }
 
   async getPlaylistById(id) {
     const query = {
-      text: 'SELECT * FROM playlists WHERE id = $1',
+      text: 'SELECT playlists.id, playlists.name, users.username FROM playlists LEFT JOIN users ON users.id = playlists.owner WHERE playlists.id = $1',
       values: [id],
     };
 
@@ -74,6 +76,37 @@ class PlaylistsService {
 
     if (playlist.owner !== owner) {
       throw new AuthorizationError('Anda tidak berhak mengakses resource ini');
+    }
+  }
+
+  async addPlaylistSong(playlistId, songId) {
+    const id = `playlistsong-${nanoid(16)}`;
+    const query = {
+      text: 'INSERT INTO playlist_songs VALUES ($1, $2, $3) RETURNING id',
+      values: [id, playlistId, songId],
+    };
+    const result = await this._pool.query(query);
+    if (!result.rowCount) {
+      throw InvariantError('Gagal Menambahkan song ke dalam playlist');
+    }
+  }
+
+  async getPlaylistSongs(playlistId) {
+    const playlist = await this.getPlaylistById(playlistId);
+    const songs = await this._songsService.getSongsInPlaylist(playlistId);
+
+    playlist.songs = songs;
+    return playlist;
+  }
+
+  async deletePlaylistSong(playlistId, songId) {
+    const query = {
+      text: 'DELETE FROM playlist_songs WHERE playlist_id = $1 AND song_id = $2 RETURNING id',
+      values: [playlistId, songId],
+    };
+    const result = await this._pool.query(query);
+    if (!result.rowCount) {
+      throw new NotFoundError('Gagal menghapus song dari playlist, data tidak ditemukan');
     }
   }
 }
