@@ -3,12 +3,12 @@ const { Pool } = require('pg');
 const AuthorizationError = require('../exception/AuthorizationError');
 const InvariantError = require('../exception/InvariantError');
 const NotFoundError = require('../exception/NotFoundError');
-const mapPlaylistDBToModel = require('../utils');
 
 class PlaylistsService {
-  constructor(songsService) {
+  constructor(songsService, collaborationsService) {
     this._pool = new Pool();
     this._songsService = songsService;
+    this._collaborationsService = collaborationsService;
   }
 
   async addPlaylist(name, owner) {
@@ -28,12 +28,16 @@ class PlaylistsService {
 
   async getPlaylists(owner) {
     const query = {
-      text: 'SELECT * FROM playlists WHERE owner = $1',
+      text: `SELECT playlists.id, playlists.name, users.username FROM playlists
+      LEFT JOIN users ON users.id = playlists.owner
+      LEFT JOIN collaborations ON collaborations.playlist_id = playlists.id
+      WHERE playlists.owner = $1 OR collaborations.user_id = $1 
+      GROUP BY playlists.id, users.username`,
       values: [owner],
     };
 
     const result = await this._pool.query(query);
-    return result.rows.map(mapPlaylistDBToModel);
+    return result.rows;
   }
 
   async getPlaylistById(id) {
@@ -108,6 +112,51 @@ class PlaylistsService {
     if (!result.rowCount) {
       throw new NotFoundError('Gagal menghapus song dari playlist, data tidak ditemukan');
     }
+  }
+
+  async verifyPlaylistAccess(playlistId, userId) {
+    try {
+      await this.verifyPlaylistOwner(playlistId, userId);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      try {
+        await this._collaborationsService.verifyPlaylistCollaborator(playlistId, userId);
+      } catch {
+        throw error;
+      }
+    }
+  }
+
+  async addPlaylistActivity(playlistId, songId, userId, action) {
+    const id = `activity-${nanoid(16)}`;
+    const now = new Date();
+    const time = now.toISOString();
+    const query = {
+      text: 'INSERT INTO playlist_song_activities VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+      values: [id, playlistId, songId, userId, action, time],
+    };
+
+    const result = await this._pool.query(query);
+    if (!result.rowCount) {
+      throw new InvariantError('Gagal menambahkan activity');
+    }
+  }
+
+  async getPlaylistActivities(playlistId) {
+    const query = {
+      text: `SELECT users.username, songs.title, playlist_song_activities.action, playlist_song_activities.time
+      FROM playlist_song_activities
+      LEFT JOIN users ON users.id = playlist_song_activities.user_id
+      LEFT JOIN songs ON songs.id = playlist_song_activities.song_id
+      WHERE playlist_song_activities.playlist_id = $1
+      ORDER BY playlist_song_activities.time`,
+      values: [playlistId],
+    };
+
+    const result = await this._pool.query(query);
+    return result.rows;
   }
 }
 

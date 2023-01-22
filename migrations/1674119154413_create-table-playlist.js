@@ -12,6 +12,7 @@ exports.up = (pgm) => {
       type: 'VARCHAR(50)',
       references: 'users(id)',
       onDelete: 'CASCADE',
+      notNull: true,
     },
   });
 };

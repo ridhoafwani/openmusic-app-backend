@@ -1,26 +1,34 @@
 exports.up = (pgm) => {
-  pgm.createTable('playlist_songs', {
+  pgm.createTable('playlist_song_activities', {
     id: {
       type: 'VARCHAR(50)',
       primaryKey: true,
     },
     playlist_id: {
       type: 'VARCHAR(50)',
+      notNull: true,
       references: 'playlists(id)',
       onDelete: 'CASCADE',
-      notNull: true,
     },
     song_id: {
       type: 'VARCHAR(50)',
-      references: 'songs(id)',
-      onDelete: 'CASCADE',
+      notNull: true,
+    },
+    user_id: {
+      type: 'VARCHAR(50)',
+      notNull: true,
+    },
+    action: {
+      type: 'VARCHAR(10)',
+      notNull: true,
+    },
+    time: {
+      type: 'TEXT',
       notNull: true,
     },
   });
-
-  pgm.addConstraint('playlist_songs', 'unique_playlist_id_and_song_id', 'UNIQUE(playlist_id, song_id)');
 };
 
 exports.down = (pgm) => {
-  pgm.dropTable('playlist_songs');
+  pgm.dropTable('playlist_song_activities');
 };
