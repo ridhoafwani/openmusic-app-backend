@@ -4,6 +4,7 @@ const Jwt = require('@hapi/jwt');
 const albums = require('./api/albums');
 const authentications = require('./api/authentications');
 const collaborations = require('./api/collaborations');
+const _exports = require('./api/exports');
 const playlists = require('./api/playlists');
 const songs = require('./api/songs');
 const users = require('./api/users');
@@ -14,10 +15,12 @@ const CollaborationsService = require('./services/postgres/CollaborationsService
 const PlaylistsService = require('./services/postgres/PlaylistsService');
 const SongsService = require('./services/postgres/SongsService');
 const UsersService = require('./services/postgres/UsersService');
+const ProducerService = require('./services/rabbitmq/ProducerService');
 const TokenManager = require('./tokenize/TokenManager');
 const AlbumValidator = require('./validator/albums');
 const AuthenticationsValidator = require('./validator/authentications');
 const CollaborationsValidator = require('./validator/collaborations');
+const ExportsValidator = require('./validator/exports');
 const PlaylistValidator = require('./validator/playlists');
 const SongValidator = require('./validator/songs');
 const UserValidator = require('./validator/users');
@@ -108,6 +111,14 @@ const init = async () => {
         playlistsService,
         usersService,
         validator: CollaborationsValidator,
+      },
+    },
+    {
+      plugin: _exports,
+      options: {
+        producerService: ProducerService,
+        playlistsService,
+        validator: ExportsValidator,
       },
     },
   ]);
