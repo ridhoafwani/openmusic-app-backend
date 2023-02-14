@@ -16,17 +16,21 @@ const PlaylistsService = require('./services/postgres/PlaylistsService');
 const SongsService = require('./services/postgres/SongsService');
 const UsersService = require('./services/postgres/UsersService');
 const ProducerService = require('./services/rabbitmq/ProducerService');
+const StorageService = require('./services/S3/StorageService');
 const TokenManager = require('./tokenize/TokenManager');
+const config = require('./utils/config');
 const AlbumValidator = require('./validator/albums');
 const AuthenticationsValidator = require('./validator/authentications');
 const CollaborationsValidator = require('./validator/collaborations');
 const ExportsValidator = require('./validator/exports');
 const PlaylistValidator = require('./validator/playlists');
 const SongValidator = require('./validator/songs');
+const UploadValidator = require('./validator/uploads');
 const UserValidator = require('./validator/users');
 require('dotenv').config();
 
 const init = async () => {
+  const storageService = new StorageService();
   const albumsService = new AlbumsService();
   const songsService = new SongsService();
   const usersService = new UsersService();
@@ -34,8 +38,8 @@ const init = async () => {
   const collaborationsService = new CollaborationsService();
   const playlistsService = new PlaylistsService(songsService, collaborationsService);
   const server = Hapi.server({
-    port: 5000,
-    host: 'localhost',
+    port: config.app.port,
+    host: config.app.host,
     routes: {
       cors: {
         origin: ['*'],
@@ -69,8 +73,10 @@ const init = async () => {
     {
       plugin: albums,
       options: {
-        service: albumsService,
-        validator: AlbumValidator,
+        albumsService,
+        storageService,
+        albumValidator: AlbumValidator,
+        uploadValidator: UploadValidator,
       },
     },
     {
