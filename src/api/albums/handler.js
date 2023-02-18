@@ -13,8 +13,7 @@ class AlbumsHandler {
 
   async postAlbumHandler(request, h) {
     this._albumValidator.validateAlbumPayload(request.payload);
-    const { name, year } = request.payload;
-    const albumId = await this._albumsService.addAlbum({ name, year });
+    const albumId = await this._albumsService.addAlbum(request.payload);
     const response = h.response({
       status: 'success',
       message: 'Album berhasil ditambahkan',
@@ -74,6 +73,46 @@ class AlbumsHandler {
     });
 
     response.code(201);
+    return response;
+  }
+
+  async postAlbumLikeHandler(request, h) {
+    const { id } = request.params;
+    await this._albumsService.verifyAlbum(id);
+    const { id: credentialId } = request.auth.credentials;
+
+    const isLiked = await this._albumsService.isAlbumLiked(id, credentialId);
+
+    if (isLiked) {
+      await this._albumsService.deleteAlbumLike(id, credentialId);
+      const response = h.response({
+        status: 'success',
+        message: 'Berhasil unlike album',
+      });
+      response.code(201);
+      return response;
+    }
+
+    await this._albumsService.addAlbumLike(id, credentialId);
+    const response = h.response({
+      status: 'success',
+      message: 'Berhasil like album',
+    });
+    response.code(201);
+    return response;
+  }
+
+  async getAlbumLikesHandler(request, h) {
+    const { id } = request.params;
+    const { likes, cached } = await this._albumsService.getLikesCount(id);
+    const response = h.response({
+      status: 'success',
+      data: {
+        likes,
+      },
+    });
+    if (cached) response.header('X-Data-Source', 'cache');
+
     return response;
   }
 }

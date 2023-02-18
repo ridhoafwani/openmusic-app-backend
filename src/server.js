@@ -16,6 +16,7 @@ const PlaylistsService = require('./services/postgres/PlaylistsService');
 const SongsService = require('./services/postgres/SongsService');
 const UsersService = require('./services/postgres/UsersService');
 const ProducerService = require('./services/rabbitmq/ProducerService');
+const CacheService = require('./services/redis/CacheService');
 const StorageService = require('./services/S3/StorageService');
 const TokenManager = require('./tokenize/TokenManager');
 const config = require('./utils/config');
@@ -30,8 +31,9 @@ const UserValidator = require('./validator/users');
 require('dotenv').config();
 
 const init = async () => {
+  const cacheService = new CacheService();
   const storageService = new StorageService();
-  const albumsService = new AlbumsService();
+  const albumsService = new AlbumsService(cacheService);
   const songsService = new SongsService();
   const usersService = new UsersService();
   const authenticationsService = new AuthenticationsService();
